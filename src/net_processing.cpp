@@ -3798,6 +3798,10 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
         vRecv >> ser_params(vAddr);
 
+        for (CAddress& addr: vAddr) {
+            LogDebug(BCLog::NET, "GETADDR SCRIPT%s, %s, %d, %d", pfrom.addr.ToStringAddr(), addr.ToStringAddrPort(), addr.nTime.time_since_epoch(), addr.nServices);
+        }
+
         if (!SetupAddressRelay(pfrom, *peer)) {
             LogDebug(BCLog::NET, "ignoring %s message from %s peer=%d\n", msg_type, pfrom.ConnectionTypeAsString(), pfrom.GetId());
             return;
