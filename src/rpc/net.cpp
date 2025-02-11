@@ -1179,6 +1179,68 @@ static RPCHelpMan getrawaddrman()
     };
 }
 
+static RPCHelpMan getrawterrible()
+{
+    return RPCHelpMan{"getrawterrible",
+        "EXPERIMENTAL warning: this call may be changed in future releases.\n"
+        "\nReturns information on all address manager entries for the new and tried tables.\n",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ_DYN, "", "", {
+                {RPCResult::Type::OBJ_DYN, "table", "buckets with addresses in the address manager table ( new, tried )", {
+                    {RPCResult::Type::NUM, "address_n", "No of terrible addresses"},
+                }}
+            }
+        },
+        RPCExamples{
+            HelpExampleCli("getrawterrible", "")
+            + HelpExampleRpc("getrawterrible", "")
+        },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            AddrMan& addrman = EnsureAnyAddrman(request.context);
+
+            int terrible_tried = 0;
+            int terrible_new = 0;
+            for (const auto &addr: addrman.GetEntries(false)) {
+                if (addr.first.IsTerrible()) {
+                    terrible_new += 1;
+                }
+            }
+
+            for (const auto &addr: addrman.GetEntries(true)) {
+                if (addr.first.IsTerrible()) {
+                    terrible_tried += 1;
+                }
+            }
+
+            int discouraged_tried = 0;
+            int discouraged_new = 0;
+
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            BanMan& banman = EnsureBanman(node);
+            for (const auto &addr: addrman.GetEntries(false)) {
+                if (banman.IsDiscouraged(addr.first)) {
+                    discouraged_new += 1;
+                }
+            }
+
+            for (const auto &addr: addrman.GetEntries(true)) {
+                if (banman.IsDiscouraged(addr.first)) {
+                    discouraged_tried += 1;
+                }
+            }
+
+            UniValue ret(UniValue::VOBJ);
+            ret.pushKV("terrible_tried", terrible_tried);
+            ret.pushKV("terrible_new", terrible_new);
+            ret.pushKV("discouraged_tried", discouraged_tried);
+            ret.pushKV("discouraged_new", discouraged_new);
+
+            return ret;
+        },
+    };
+}
+
 void RegisterNetRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -1200,6 +1262,7 @@ void RegisterNetRPCCommands(CRPCTable& t)
         {"hidden", &addpeeraddress},
         {"hidden", &sendmsgtopeer},
         {"hidden", &getrawaddrman},
+        {"hidden", &getrawterrible},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);
