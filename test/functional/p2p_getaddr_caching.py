@@ -27,16 +27,22 @@ class AddrReceiver(P2PInterface):
     def __init__(self):
         super().__init__()
         self.received_addrs = None
+        self.received_addrs_and_timestamps = None
 
     def get_received_addrs(self):
         with p2p_lock:
             return self.received_addrs
 
+    def get_received_addrs_and_timestamps(self):
+        with p2p_lock:
+            return self.received_addrs_and_timestamps
+
     def on_addr(self, message):
         self.received_addrs = []
+        self.received_addrs_and_timestamps = {}
         for addr in message.addrs:
-            assert_equal(addr.time, 0)
             self.received_addrs.append(addr.ip)
+            self.received_addrs_and_timestamps[addr.ip] = addr.time
 
     def addr_received(self):
         return self.received_addrs is not None
@@ -119,6 +125,21 @@ class AddrTest(BitcoinTestFramework):
         assert_not_equal(set(last_response_on_onion_bind1), set(addr_receiver_onion1.get_received_addrs()))
         assert_not_equal(set(last_response_on_onion_bind2), set(addr_receiver_onion2.get_received_addrs()))
 
+        # check that the timestamp is slightly different from the one contained in addrman
+        addr_ts_local_bind = addr_receiver_local.get_received_addrs_and_timestamps()
+        addr_ts_onion_bind1 = addr_receiver_onion1.get_received_addrs_and_timestamps()
+        addr_ts_onion_bind2 = addr_receiver_onion2.get_received_addrs_and_timestamps()
+
+        node_addresses = {peer['address'] : peer['time'] for peer in self.nodes[0].getnodeaddresses(0)}
+
+        for address_ts_response in [addr_ts_local_bind, addr_ts_onion_bind1, addr_ts_onion_bind2]:
+            any_different_timestamp = False
+            for address, timestamp in node_addresses.items():
+                if address in address_ts_response and timestamp != address_ts_response[address]:
+                    any_different_timestamp = True
+                    # Check that fuzzing is 10 min max
+                    assert abs(timestamp - address_ts_response[address]) < 10 * 60
+            assert any_different_timestamp
 
 if __name__ == '__main__':
     AddrTest(__file__).main()
