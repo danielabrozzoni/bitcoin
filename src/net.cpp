@@ -3529,6 +3529,9 @@ std::vector<CAddress> CConnman::GetAddresses(CNode& requestor, size_t max_addres
     CachedAddrResponse& cache_entry = r.first->second;
     if (cache_entry.m_cache_entry_expiration < current_time) { // If emplace() added new one it has expiration 0.
         cache_entry.m_addrs_response_cache = GetAddresses(max_addresses, max_pct, /*network=*/std::nullopt);
+        for(CAddress& addr : cache_entry.m_addrs_response_cache) {
+            addr.nTime = NodeSeconds{0s};
+        }
         // Choosing a proper cache lifetime is a trade-off between the privacy leak minimization
         // and the usefulness of ADDR responses to honest users.
         //

@@ -35,6 +35,7 @@ class AddrReceiver(P2PInterface):
     def on_addr(self, message):
         self.received_addrs = []
         for addr in message.addrs:
+            assert_equal(addr.time, 0)
             self.received_addrs.append(addr.ip)
 
     def addr_received(self):
