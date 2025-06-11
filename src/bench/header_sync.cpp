@@ -49,7 +49,7 @@ static void ProcessNextHeadersPresyncBench(benchmark::Bench& bench) {
     bench.run([&] {
         std::vector<CBlockHeader> chain1 = chain;
         std::vector<CBlockHeader> chain2 = chain;
-        HeadersSyncState* hss = new HeadersSyncState(0, Params().GetConsensus(), chain_start, chain_work);
+        HeadersSyncState* hss = new HeadersSyncState(0, Params().GetConsensus(), *chain_start, chain_work);
         auto result = hss->ProcessNextHeaders(chain1, true);
         assert(result.success);
         assert(hss->GetState() == HeadersSyncState::State::REDOWNLOAD);
