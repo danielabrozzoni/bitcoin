@@ -73,14 +73,18 @@ def forward_sockets(a, b, wakeup_socket, serv):
         if len(xlist) > 0:
             raise IOError('Exceptional condition on socket')
         for s in rlist:
-            data = s.recv(4096)
-            if data is None or len(data) == 0:
-                done = True
-                break
-            if s == a:
-                sendall(b, data)
-            elif s == b:
-                sendall(a, data)
+            try:
+                data = s.recv(4096)
+                if data is None or len(data) == 0:
+                    done = True
+                    break
+                if s == a:
+                    sendall(b, data)
+                elif s == b:
+                    sendall(a, data)
+            except (ConnectionResetError, BrokenPipeError) as e:
+                logger.debug("forward_sockets: peer disconnected while forwarding: %s", e)
+                return
 
 # Implementation classes
 class Socks5Configuration():
