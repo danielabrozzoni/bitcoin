@@ -966,4 +966,20 @@ BOOST_AUTO_TEST_CASE(block_template_manager)
     BOOST_CHECK(block_template->vTxSigOpsCost.empty());
 }
 
+BOOST_FIXTURE_TEST_CASE(checkBlock_no_tip, ChainTestingSetup)
+{
+    // The mining interface can be used on early startup, before any tip
+    // is connected. Check that checkBlock doesn't crash, but returns
+    // "inconclusive-no-chain-tip" instead.
+    WITH_LOCK(::cs_main, m_node.chainman->InitializeChainstate(m_node.mempool.get()));
+    BOOST_REQUIRE(!WITH_LOCK(::cs_main, return m_node.chainman->ActiveChain().Tip()));
+
+    auto mining{interfaces::MakeMining(m_node, /*wait_loaded=*/false)};
+    std::string reason;
+    std::string debug;
+    BOOST_REQUIRE(!mining->checkBlock(CBlock{}, {}, reason, debug));
+    BOOST_REQUIRE_EQUAL(reason, "inconclusive-no-chain-tip");
+    BOOST_REQUIRE_EQUAL(debug, "no chain tip connected yet");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

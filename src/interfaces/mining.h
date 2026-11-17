@@ -161,6 +161,10 @@ public:
      * @param[out] debug      more detailed rejection reason
      * @returns               whether the block is valid
      *
+     * During early startup, before the active chain has a tip, this returns
+     * false with reason "inconclusive-no-chain-tip". waitTipChanged() can be used
+     * to wait for a tip.
+     *
      * For signets the challenge verification is skipped when check_pow is false.
      */
     virtual bool checkBlock(const CBlock& block, const node::BlockCheckOptions& options, std::string& reason, std::string& debug) = 0;

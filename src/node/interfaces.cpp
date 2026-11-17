@@ -1001,6 +1001,13 @@ public:
     bool checkBlock(const CBlock& block, const node::BlockCheckOptions& options, std::string& reason, std::string& debug) override
     {
         LOCK(chainman().GetMutex());
+        // TestBlockValidity() requires a tip, which is not yet connected on
+        // early startup.
+        if (!chainman().ActiveChain().Tip()) {
+            reason = "inconclusive-no-chain-tip";
+            debug = "no chain tip connected yet";
+            return false;
+        }
         BlockValidationState state{TestBlockValidity(chainman().ActiveChainstate(), block, /*check_pow=*/options.check_pow, /*check_merkle_root=*/options.check_merkle_root)};
         reason = state.GetRejectReason();
         debug = state.GetDebugMessage();
