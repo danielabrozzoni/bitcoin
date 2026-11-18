@@ -17,6 +17,7 @@ from test_framework.blocktools import (
     WITNESS_COMMITMENT_HEADER,
 )
 from test_framework.messages import (
+    CBlock,
     CBlockHeader,
     COIN,
     CTransaction,
@@ -198,6 +199,39 @@ class IPCMiningTest(BitcoinTestFramework):
         # Restarting node 0 drops its P2P connection to the rest of the test
         # chain. Restore the synced 0-1-2 topology before later tests split
         # node 2 off for submitBlock checks.
+        self.sync_all()
+
+    def run_check_block_no_tip_test(self):
+        """Make sure checkBlock() is safe to call before the tip is connected."""
+        self.log.info("Running Mining interface no tip test")
+
+        node = self.nodes[0]
+        self.stop_node(node.index)
+        # When reindexing there is a window where the chainstate is
+        # loaded and the IPC socket is serving while the active chain still has
+        # no tip.
+        node.start(node.extra_args + ["-reindex"])
+
+        async def async_routine():
+            while True:
+                try:
+                    ctx, mining = await make_mining_ctx(self)
+                    break
+                except (ConnectionRefusedError, FileNotFoundError):
+                    # Poll quickly to connect as soon as socket becomes
+                    # available but without using a lot of CPU
+                    await asyncio.sleep(0.005)
+
+            check_opts = self.capnp_modules['mining'].BlockCheckOptions()
+            check = await mining.checkBlock(ctx, CBlock().serialize(), check_opts)
+            assert_equal(check.result, False)
+            assert_equal(check.reason, "inconclusive-no-chain-tip")
+
+        asyncio.run(capnp.run(async_routine()))
+
+        # Reconnect nodes so next tests are happy
+        node.wait_for_rpc_connection()
+        self.connect_nodes(1, 0)
         self.sync_all()
 
     def run_block_template_test(self):
@@ -890,6 +924,7 @@ class IPCMiningTest(BitcoinTestFramework):
         self.default_block_wait_options.feeThreshold = 1
         self.run_mining_interface_test()
         self.run_early_startup_test()
+        self.run_check_block_no_tip_test()
         self.run_block_template_test()
         self.run_coinbase_and_submission_test()
         self.run_waitnext_mining_policy_test()
