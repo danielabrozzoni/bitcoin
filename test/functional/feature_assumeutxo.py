@@ -718,8 +718,10 @@ class AssumeutxoTest(BitcoinTestFramework):
         }
         self.wait_until(lambda: n1.getindexinfo() == completed_idx_state)
 
-        self.log.info("rollback=0 fails with confusing error message")
-        assert_raises_rpc_error(-1, "Could not roll back to requested height since necessary block data is already pruned.", n1.dumptxoutset, 'rollback_genesis.dat', rollback=0)
+        self.log.info("rollback=0 succeeds on pruned nodes with all data available")
+        dump = n1.dumptxoutset('rollback_genesis.dat', rollback=0)
+        assert_equal(dump['base_height'], 0)
+        assert_equal(dump['coins_written'], 0)
 
         self.log.info("Re-check nTx and nChainTx values")
         check_tx_counts(final=True)
